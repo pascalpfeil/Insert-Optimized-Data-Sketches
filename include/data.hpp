@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <limits>
 #include <random>
@@ -80,6 +82,76 @@ const std::vector<T>& GetData() {
       } else {
         data.emplace_back(dist(gen));
       }
+    }
+  }
+  return data;
+}
+
+/// Bijection on [0, 2^bits): odd multiplications and xor-shifts are each
+/// invertible, so distinct inputs below 2^bits give distinct outputs.
+inline uint64_t MixBits(uint64_t x, unsigned bits) {
+  const uint64_t mask = bits == 64 ? ~uint64_t{0} : (uint64_t{1} << bits) - 1;
+  x = (x * 0x9E3779B97F4A7C15ULL) & mask;
+  x ^= x >> (bits / 2);
+  x = (x * 0xBF58476D1CE4E5B9ULL) & mask;
+  x ^= x >> (bits / 2 + 1);
+  return x;
+}
+
+/// Value of type T for Zipf rank `rank` (0 = most frequent). Ranks are spread
+/// over the value space by a bijection, so the frequent values are not simply
+/// the small integers. Floating point values are integers below 2^24 / 2^53,
+/// which both types represent exactly.
+template <typename T>
+T ZipfValue(uint64_t rank) {
+  if constexpr (std::is_same_v<T, int16_t>) {
+    return static_cast<T>(static_cast<uint16_t>(MixBits(rank, 16)));
+  } else if constexpr (std::is_same_v<T, int32_t>) {
+    return static_cast<T>(static_cast<uint32_t>(MixBits(rank, 32)));
+  } else if constexpr (std::is_same_v<T, int64_t>) {
+    return static_cast<T>(MixBits(rank, 64));
+  } else if constexpr (std::is_same_v<T, __int128_t>) {
+    return static_cast<T>((static_cast<__uint128_t>(MixBits(rank, 64)) << 64) |
+                          MixBits(rank ^ 0x5555555555555555ULL, 64));
+  } else if constexpr (std::is_same_v<T, float>) {
+    return static_cast<float>(MixBits(rank, 24));
+  } else if constexpr (std::is_same_v<T, double>) {
+    return static_cast<double>(MixBits(rank, 53));
+  } else if constexpr (detail::is_string_v<T>) {
+    return to_string(static_cast<double>(MixBits(rank, 53)));
+  } else {
+    static_assert(!sizeof(T), "Unsupported type");
+  }
+}
+
+/// Zipf(kZipfExponent) distributed data: 1M values drawn over 1M distinct
+/// values (65536 for int16_t), rank r having probability proportional to
+/// 1 / (r + 1)^s. With s = 1 the most frequent value makes up about 7% of the
+/// data and about 217K distinct values appear (59K for int16_t). Sampling
+/// inverts the exact CDF.
+constexpr double kZipfExponent = 1.0;
+
+template <typename T>
+const std::vector<T>& GetZipfData() {
+  static std::vector<T> data;
+  if (data.empty()) {
+    constexpr size_t kNumValues = 1'000'000;
+    const size_t distinct = std::is_same_v<T, int16_t> ? 65536 : kNumValues;
+    std::vector<double> cdf(distinct);
+    double acc = 0;
+    for (size_t i = 0; i < distinct; ++i) {
+      cdf[i] = (acc += std::pow(static_cast<double>(i + 1), -kZipfExponent));
+    }
+    for (double& c : cdf) c /= acc;
+    constexpr size_t kSeed = 42;
+    std::mt19937 gen(kSeed);
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    data.reserve(kNumValues);
+    for (size_t i = 0; i < kNumValues; ++i) {
+      const auto it = std::upper_bound(cdf.begin(), cdf.end(), dist(gen));
+      const size_t rank =
+          std::min<size_t>(static_cast<size_t>(it - cdf.begin()), distinct - 1);
+      data.push_back(ZipfValue<T>(rank));
     }
   }
   return data;

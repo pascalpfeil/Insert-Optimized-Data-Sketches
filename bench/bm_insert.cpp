@@ -7,6 +7,7 @@
 #include "cs/cs_fixed_size.hpp"
 #include "cs/cs_naive.hpp"
 #include "data.hpp"
+#include "kll/kll_branchless.hpp"
 #include "kll/kll_cached_level_capacities.hpp"
 #include "kll/kll_datasketches.hpp"
 #include "kll/kll_final.hpp"
@@ -16,6 +17,7 @@
 #include "kll/kll_pcg_random.hpp"
 #include "ss/ss_datasketches.hpp"
 #include "ss/ss_final.hpp"
+#include "ss/ss_fingerprint.hpp"
 #include "ss/ss_heap.hpp"
 #include "ss/ss_map.hpp"
 #include "ss/ss_naive.hpp"
@@ -60,6 +62,7 @@ BENCHMARK_INSERT_ALL_TYPES(naive::SpaceSaving);
 BENCHMARK_INSERT_ALL_TYPES(map::SpaceSaving);
 BENCHMARK_INSERT_ALL_TYPES(heap::SpaceSaving);
 BENCHMARK_INSERT_ALL_TYPES(final::SpaceSaving);
+BENCHMARK_INSERT_ALL_TYPES(fingerprint::SpaceSaving);
 
 BENCHMARK_INSERT_ALL_TYPES(datasketches::CountMinSketch);
 BENCHMARK_INSERT_ALL_TYPES(naive::CountSketch);
@@ -75,5 +78,6 @@ BENCHMARK_INSERT_ALL_TYPES(no_self_move_protection::KarninLangLiberty);
 BENCHMARK_INSERT_ALL_TYPES(cached_level_capacities::KarninLangLiberty);
 BENCHMARK_INSERT_ALL_TYPES(pcg_random::KarninLangLiberty);
 BENCHMARK_INSERT_ALL_TYPES(final::KarninLangLiberty);
+BENCHMARK_INSERT_ALL_TYPES(branchless::KarninLangLiberty);
 
 CUSTOM_BENCHMARK_MAIN(true, false);

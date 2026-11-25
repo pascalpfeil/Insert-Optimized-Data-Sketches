@@ -29,6 +29,9 @@
 
 #include "MurmurHash3.h"
 
+// libstdc++ 16 provides these specializations itself (also in strict
+// -std=c++17 mode), so only define them for older standard libraries.
+#if !defined(_GLIBCXX_RELEASE) || _GLIBCXX_RELEASE < 16
 namespace std {
 template <>
 struct hash<__int128_t> {
@@ -48,6 +51,7 @@ struct hash<__uint128_t> {
   }
 };
 }  // namespace std
+#endif
 
 namespace datasketches {
 

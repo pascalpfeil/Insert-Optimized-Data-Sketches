@@ -126,9 +126,9 @@ class KarninLangLiberty {
         num_levels_(1),
         is_level_zero_sorted_(false),
         n_(0),
+        level_capacities(compute_level_capacities(k_, m_)),
         levels_(kMaxNumLevels, 0, allocator),
-        max_capacity_(compute_total_capacity(kMaxNumLevels)),
-        level_capacities(compute_level_capacities(k_, m_)) {
+        max_capacity_(compute_total_capacity(kMaxNumLevels)) {
     if (k < kll_constants::MIN_K || k > kll_constants::MAX_K) {
       throw std::invalid_argument(
           "K must be >= " + std::to_string(kll_constants::MIN_K) + " and <= " +
@@ -172,15 +172,17 @@ class KarninLangLiberty {
   uint8_t num_levels_;
   bool is_level_zero_sorted_;
   uint64_t n_;
+
+  /// 60 levels are enough to fit std::numeric_limits<size_t>::max() elements.
+  static constexpr size_t kMaxNumLevels = 60;
+  /// Declared (and therefore initialized) before max_capacity_, whose
+  /// initializer reads it through compute_total_capacity().
+  std::array<uint16_t, kMaxNumLevels> level_capacities;
+
   size_t max_capacity_;
   vector_u32 levels_;
   T* items_storage_;
   std::span<T> items_;
-
-  /// 60 levels are enough to fit std::numeric_limits<size_t>::max() elements.
-  static constexpr size_t kMaxNumLevels = 60;
-  std::array<uint16_t, kMaxNumLevels> level_capacities;
-
   void randomly_halve_down(T* buf, uint32_t start, uint32_t length) {
     const uint32_t half_length = length / 2;
     const uint32_t offset = random_bit();
